@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2/dialog"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
@@ -105,6 +106,12 @@ func get_commits(path string) []Commit {
     return commits
 }
 
+var RepoPath = ""
+
+func MenuSelect(uri fyne.ListableURI, e error) {
+    RepoPath = uri.Path()
+}
+
 func main() {
     commits := get_commits("/home/sean/Desktop/stuff/crisp")
 	a := app.New()
@@ -139,6 +146,11 @@ func main() {
 		"Repository",
 		"Last Sync: ", subContent)
 	rebasePanel := container.NewGridWithColumns(len(rebaseMenu), rebaseMenu...)
+    fsMenu := dialog.NewFolderOpen(MenuSelect, w)
+	fsSelect := widget.NewButton("Choose Respository", func() {
+        fsMenu.Show()
+	})
+    buttons = append(buttons, fsSelect)
 	rebaseCard := widget.NewCard(
 		"Rebase Settings",
 		"Status: ", rebasePanel)
