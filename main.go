@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 
 	// "os/exec"
 	// "sort"
@@ -12,8 +14,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
@@ -106,10 +108,55 @@ func get_commits(path string) []Commit {
     return commits
 }
 
-var RepoPath = ""
+var RepoPath = "/home/sean/Desktop/stuff/crisp"
 
 func MenuSelect(uri fyne.ListableURI, e error) {
     RepoPath = uri.Path()
+}
+
+type AppConfig struct {
+    current_repo string;
+}
+
+func readConfig() AppConfig {
+    configPath := "~/.config/BabyGit.conf"
+    if runtime.GOOS == "windows" {
+        configPath = "C:\\Program Files\\Common Files"
+    } else {
+        _, err := os.Stat("~/.config")
+        if err != nil {
+            os.Mkdir("~/.config", os.ModeDir)
+        }
+        _, ferr := os.Stat("~/.config/BabyGit.conf")
+        if ferr != nil {
+            os.Create("~/.config/BabyGit.conf")
+        }
+    }
+    file, err := os.Open(configPath)
+    if err != nil {
+        fmt.Println(err)
+    }
+    fileScanner := bufio.NewScanner(file)
+    fileScanner.Split(bufio.ScanLines)
+    var config AppConfig
+    for fileScanner.Scan() {
+        line := fileScanner.Text()
+        lineSplit := strings.Split(line, " ")
+        if len(lineSplit) == 0 {
+            continue
+        }
+        option := lineSplit[0]
+        switch option {
+            case "repo":
+                config.current_repo = line[len(option) + 1:]
+                continue
+            default:
+                fmt.Println("unknown config option: ", option)
+                continue
+        }
+    }
+    file.Close()
+    return config
 }
 
 func main() {
