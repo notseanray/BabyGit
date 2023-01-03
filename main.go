@@ -120,17 +120,27 @@ type AppConfig struct {
 
 func readConfig() AppConfig {
     configPath := "~/.config/BabyGit.conf"
+    configFolder := "~/.config"
     if runtime.GOOS == "windows" {
-        configPath = "C:\\Program Files\\Common Files"
-    } else {
-        _, err := os.Stat("~/.config")
-        if err != nil {
-            os.Mkdir("~/.config", os.ModeDir)
+        configFolder = "C:\\Program Files\\Common Files"
+        configPath = configFolder + "\\BabyGit.conf"
+    }
+    _, err := os.Stat("configFolder")
+    if err != nil {
+        // fmt.Println("failed to open config directory")
+        e := os.Mkdir("~/.config", os.ModeDir)
+        if e != nil {
+            fmt.Println(e)
         }
-        _, ferr := os.Stat("~/.config/BabyGit.conf")
-        if ferr != nil {
-            os.Create("~/.config/BabyGit.conf")
+    }
+    _, ferr := os.Stat(configPath)
+    if ferr != nil {
+        // fmt.Println("failed to access .config folder to create config file")
+        f, e := os.Create(configPath)
+        if e != nil {
+            fmt.Println(e)
         }
+        f.Close()
     }
     file, err := os.Open(configPath)
     if err != nil {
@@ -160,7 +170,9 @@ func readConfig() AppConfig {
 }
 
 func main() {
-    commits := get_commits("/home/sean/Desktop/stuff/crisp")
+    config := readConfig()
+    fmt.Println(config)
+    commits := get_commits(config.current_repo)
 	a := app.New()
 	w := a.NewWindow("BabyGit")
 	var buttons []fyne.CanvasObject
