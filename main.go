@@ -4,7 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"runtime"
+    "time"
+	// "runtime"
 
 	// "os/exec"
 	// "sort"
@@ -46,6 +47,43 @@ func Warning(format string, args ...interface{}) {
 	fmt.Printf("\x1b[36;1m%s\x1b[0m\n", fmt.Sprintf(format, args...))
 }
 
+func push(path string) {
+	// We instantiate a new repository targeting the given path (the .git folder)
+	r, err := git.PlainOpen(path)
+	CheckIfError(err)
+	Info("git add -A")
+	Info("git commit -m \"" + time.Now().Format(time.RFC850) + "\"")
+    w, _ := r.Worktree()
+    commit, err := w.Commit(time.Now().Format(time.RFC850), &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "BabyGit",
+			Email: "john@doe.org",
+			When:  time.Now(),
+		},
+	})
+    CheckIfError(err)
+
+	// Prints the current HEAD to verify that all worked well.
+	Info("git show -s")
+	obj, err := r.CommitObject(commit)
+	CheckIfError(err)
+    fmt.Println(obj)
+
+    r.Push(&git.PushOptions{RemoteName: "origin"})
+
+	// Pull the latest changes from the origin remote and merge into the current branch
+	// err = w.Push(&git.PullOptions{RemoteName: "origin"})
+	// CheckIfError(err)
+
+	// Print the latest commit that was just pulled
+	// ref, err := r.Head()
+	// CheckIfError(err)
+	// commit, err := r.CommitObject(ref.Hash())
+	// CheckIfError(err)
+	//
+	// fmt.Println(commit)
+}
+
 func pull(path string) {
 	// We instantiate a new repository targeting the given path (the .git folder)
 	r, err := git.PlainOpen(path)
@@ -77,6 +115,8 @@ type Commit struct {
     message string
 }
 
+var config AppConfig
+
 func get_commits(path string) []Commit {
 	r, err := git.PlainOpen(path)
 	CheckIfError(err)
@@ -104,51 +144,63 @@ func get_commits(path string) []Commit {
         })
 		return nil
 	})
-	CheckIfError(err)
     return commits
 }
 
 var RepoPath = "/home/sean/Desktop/stuff/crisp"
 
-func MenuSelect(uri fyne.ListableURI, e error) {
-    RepoPath = uri.Path()
-}
-
 type AppConfig struct {
     current_repo string;
 }
+// var canvas fyne.CanvasObject
+// var commitScroll = container.NewGridWithRows(0, canvas)
+
+func MenuSelect(uri fyne.ListableURI, e error) {
+    config.current_repo = uri.Path()
+    saveConfig()
+}
+
+func saveConfig() {
+    confString := "current_repo " + config.current_repo
+    fmt.Println(confString)
+    err := os.WriteFile("BabyGit.conf", []byte(confString), 066)
+    if err != nil {
+        fmt.Println("failed to write to config")
+    }
+}
 
 func readConfig() AppConfig {
-    configPath := "~/.config/BabyGit.conf"
-    configFolder := "~/.config"
-    if runtime.GOOS == "windows" {
-        configFolder = "C:\\Program Files\\Common Files"
-        configPath = configFolder + "\\BabyGit.conf"
-    }
-    _, err := os.Stat("configFolder")
+    // configPath := "~/.config/BabyGit.conf"
+    // configFolder := "/home/sean/.config"
+    // if runtime.GOOS == "windows" {
+    //     configFolder = "C:\\Program Files\\Common Files"
+    //     configPath = configFolder + "\\BabyGit.conf"
+    // }
+    // _, err := os.Stat("configFolder")
+    // if err != nil {
+    //     // fmt.Println("failed to open config directory")
+    //     e := os.Mkdir("/home/sean/.config", os.ModeDir)
+    //     if e != nil {
+    //         fmt.Println(e)
+    //     }
+    // }
+    // _, ferr := os.Stat(configPath)
+    // if ferr != nil {
+    _, err := os.Stat("BabyGit.conf")
     if err != nil {
-        // fmt.Println("failed to open config directory")
-        e := os.Mkdir("~/.config", os.ModeDir)
-        if e != nil {
-            fmt.Println(e)
-        }
-    }
-    _, ferr := os.Stat(configPath)
-    if ferr != nil {
-        // fmt.Println("failed to access .config folder to create config file")
-        f, e := os.Create(configPath)
+        f, e := os.Create("BabyGit.conf")
         if e != nil {
             fmt.Println(e)
         }
         f.Close()
     }
-    file, err := os.Open(configPath)
+    // }
+    file, err := os.Open("BabyGit.conf")
     if err != nil {
         fmt.Println(err)
     }
     fileScanner := bufio.NewScanner(file)
     fileScanner.Split(bufio.ScanLines)
-    var config AppConfig
     for fileScanner.Scan() {
         line := fileScanner.Text()
         lineSplit := strings.Split(line, " ")
@@ -157,7 +209,7 @@ func readConfig() AppConfig {
         }
         option := lineSplit[0]
         switch option {
-            case "repo":
+            case "current_repo":
                 config.current_repo = line[len(option) + 1:]
                 continue
             default:
@@ -168,6 +220,7 @@ func readConfig() AppConfig {
     file.Close()
     return config
 }
+
 
 func main() {
     config := readConfig()
@@ -182,6 +235,7 @@ func main() {
 	pullButton := widget.NewButton("Pull", func() {
 		fmt.Println("test")
 		rebaseStatus = "yup"
+        pull(config.current_repo)
 	})
 	layout = append(layout, pullButton)
 	rebaseLabel := widget.NewLabel(rebaseStatus)
@@ -197,6 +251,7 @@ func main() {
 	screenEntry := widget.NewButton("Push", func() {
 		rebaseButtonLocal.Disable()
 		rebaseButtonRemote.Disable()
+        push(config.current_repo)
 		fmt.Println("test")
 	})
 	layout = append(layout, screenEntry)
